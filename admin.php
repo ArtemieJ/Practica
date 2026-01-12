@@ -1,11 +1,39 @@
 <?php
 require_once __DIR__ . '/db.php';
 
-$result = $conn->query("SELECT id, name, email, message, created_at FROM messages ORDER BY created_at DESC");
-$messages = $result->fetch_all(MYSQLI_ASSOC);
+$flash_ok = '';
+$flash_err = '';
 
-function e(string $s): string {
-  return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_message') {
+    $id      = (int)($_POST['id'] ?? 0);
+    $name    = trim($_POST['name'] ?? '');
+    $message = trim($_POST['message'] ?? '');
+
+    if ($id <= 0) {
+        $flash_err = "ID invalid.";
+    } elseif ($name === '' || $message === '') {
+        $flash_err = "Completează numele și mesajul.";
+    } else {
+        $stmt = $conn->prepare("UPDATE messages SET name = ?, message = ? WHERE id = ?");
+        if (!$stmt) {
+            $flash_err = "Prepare failed: " . $conn->error;
+        } else {
+            $stmt->bind_param("ssi", $name, $message, $id);
+            if (!$stmt->execute()) {
+                $flash_err = "Update failed: " . $conn->error;
+            } else {
+                $flash_ok = "Mesajul #{$id} a fost actualizat.";
+            }
+            $stmt->close();
+        }
+    }
+}
+
+$edit_id = isset($_GET['edit_id']) ? (int)$_GET['edit_id'] : 0;
+
+$result = $conn->query("SELECT id, name, email, message, created_at FROM messages ORDER BY id DESC");
+if (!$result) {
+    die("DB error: " . $conn->error);
 }
 ?>
 <!doctype html>
@@ -13,47 +41,156 @@ function e(string $s): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin • Mesaje</title>
+  <title>Admin - Mesaje</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="min-h-screen bg-gray-50 text-gray-900">
 
-  <header class="bg-white border-b border-gray-200">
-    <div class="max-w-6xl mx-auto px-4 py-6 flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-extrabold">Admin • Mesaje</h1>
-        <p class="text-sm text-gray-600">Total: <?php echo count($messages); ?></p>
-      </div>
-      <a href="index.php" class="px-4 py-2 rounded-xl border border-gray-300 font-semibold hover:bg-white">
-        ← Înapoi
-      </a>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-6xl mx-auto px-4 py-10">
+
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-semibold tracking-tight">Mesaje trimise</h1>
+      <div class="text-sm text-slate-500">Admin Panel</div>
+      <div class="text-sm text-slate-500"><a href="index.php">Acasa</a></div>
     </div>
-  </header>
 
-  <main class="max-w-6xl mx-auto px-4 py-10">
-    <?php if (count($messages) === 0): ?>
-      <div class="bg-white border border-gray-200 rounded-2xl p-6 text-gray-600">
-        Nu există mesaje încă.
-      </div>
-    <?php else: ?>
-      <div class="grid gap-4">
-        <?php foreach ($messages as $m): ?>
-          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-              <div>
-                <p class="font-bold text-lg"><?php echo e($m['name']); ?></p>
-                <p class="text-sm text-gray-600"><?php echo e($m['email']); ?></p>
-              </div>
-              <p class="text-sm text-gray-500">
-                <?php echo e($m['created_at']); ?> • #<?php echo (int)$m['id']; ?>
-              </p>
-            </div>
-            <p class="mt-4 text-gray-700 whitespace-pre-line"><?php echo e($m['message']); ?></p>
-          </div>
-        <?php endforeach; ?>
+    <?php if ($flash_ok): ?>
+      <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
+        <?= htmlspecialchars($flash_ok) ?>
       </div>
     <?php endif; ?>
-  </main>
 
+    <?php if ($flash_err): ?>
+      <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800">
+        <?= htmlspecialchars($flash_err) ?>
+      </div>
+    <?php endif; ?>
+
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100">
+        <p class="text-sm text-slate-600">
+          Aici poți vedea și edita mesajele utilizatorilor (nume + conținut).
+        </p>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600">
+            <tr>
+              <th class="text-left font-semibold px-6 py-3">ID</th>
+              <th class="text-left font-semibold px-6 py-3">Nume</th>
+              <th class="text-left font-semibold px-6 py-3">Email</th>
+              <th class="text-left font-semibold px-6 py-3">Mesaj</th>
+              <th class="text-left font-semibold px-6 py-3">Data</th>
+              <th class="text-left font-semibold px-6 py-3">Acțiuni</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-slate-100">
+          <?php while ($row = $result->fetch_assoc()): ?>
+            <?php
+              $id = (int)$row['id'];
+              $isEditing = ($edit_id > 0 && $edit_id === $id);
+            ?>
+            <tr class="hover:bg-slate-50/60">
+              <td class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">
+                #<?= $id ?>
+              </td>
+
+              <?php if ($isEditing): ?>
+                <!-- EDIT MODE -->
+                <td class="px-6 py-4" colspan="4">
+                  <form method="post" action="admin.php" class="space-y-4">
+                    <input type="hidden" name="action" value="update_message">
+                    <input type="hidden" name="id" value="<?= $id ?>">
+
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-500 mb-1">Nume</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value="<?= htmlspecialchars($row['name'] ?? '') ?>"
+                        required
+                        class="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:ring-2 focus:ring-slate-200"
+                      >
+                    </div>
+
+                    <div class="text-xs text-slate-500">
+                      Email (read-only):
+                      <span class="font-semibold text-slate-700"><?= htmlspecialchars($row['email'] ?? '') ?></span>
+                    </div>
+
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-500 mb-1">Mesaj</label>
+                      <textarea
+                        name="message"
+                        required
+                        class="w-full min-h-[130px] rounded-xl border border-slate-200 px-4 py-2 outline-none focus:ring-2 focus:ring-slate-200"
+                      ><?= htmlspecialchars($row['message'] ?? '') ?></textarea>
+                    </div>
+
+                    <div class="flex gap-3">
+                      <button
+                        type="submit"
+                        class="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-white font-semibold hover:bg-slate-800 transition"
+                      >
+                        Salvează
+                      </button>
+
+                      <a
+                        href="admin.php"
+                        class="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-slate-700 font-semibold hover:bg-slate-50 transition"
+                      >
+                        Anulează
+                      </a>
+                    </div>
+                  </form>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
+                    Editare
+                  </span>
+                </td>
+
+              <?php else: ?>
+                <td class="px-6 py-4 text-slate-800">
+                  <?= htmlspecialchars($row['name'] ?? '') ?>
+                </td>
+
+                <td class="px-6 py-4 text-slate-700">
+                  <?= htmlspecialchars($row['email'] ?? '') ?>
+                </td>
+
+                <td class="px-6 py-4 text-slate-800">
+                  <div class="max-w-xl whitespace-pre-wrap break-words">
+                    <?= htmlspecialchars($row['message'] ?? '') ?>
+                  </div>
+                </td>
+
+                <td class="px-6 py-4 text-slate-600 whitespace-nowrap">
+                  <?= htmlspecialchars($row['created_at'] ?? '') ?>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <a
+                    href="admin.php?edit_id=<?= $id ?>"
+                    class="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-800 font-semibold hover:bg-slate-50 transition"
+                  >
+                    Editează
+                  </a>
+                </td>
+              <?php endif; ?>
+            </tr>
+          <?php endwhile; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="mt-6 text-xs text-slate-500">
+      Notă: Email-ul rămâne read-only. Se editează doar Nume + Mesaj.
+    </p>
+  </div>
 </body>
 </html>
