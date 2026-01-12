@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/auth.php';
 $success = isset($_GET['success']) ? true : false;
 $error = isset($_GET['error']) ? true : false;
 ?>
@@ -12,32 +14,50 @@ $error = isset($_GET['error']) ? true : false;
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-900">
 
-  <header class="bg-white/80 backdrop-blur border-b border-gray-200 sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <a href="#" class="font-bold text-lg">Practica</a>
+<header class="border-b border-slate-200 bg-white">
+  <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+    <a href="index.php" class="font-semibold tracking-tight text-lg">
+      My Site
+    </a>
 
-      <nav class="hidden md:flex gap-6 text-sm">
-        <a href="#beneficii" class="hover:text-blue-600">Beneficii</a>
-        <a href="#contact" class="hover:text-blue-600">Contact</a>
-        <a href="admin.php" class="hover:text-blue-600">Admin</a>
-      </nav>
+    <?php if (isLoggedIn()): ?>
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:block text-sm text-slate-600">
+          Logat ca:
+          <span class="font-semibold text-slate-900">
+            <?= htmlspecialchars($_SESSION['user_name'] ?? 'User') ?>
+          </span>
+          <span class="text-slate-400">•</span>
+          <span class="text-slate-600">
+            <?= htmlspecialchars($_SESSION['user_email'] ?? '') ?>
+          </span>
+        </div>
 
-      <button id="menuBtn" class="md:hidden inline-flex items-center justify-center p-2 rounded-lg border border-gray-200 hover:bg-gray-100">
+        <a href="admin.php"
+           class="rounded-xl bg-slate-900 px-4 py-2 text-white font-semibold hover:bg-slate-800 transition">
+          Admin Panel
+        </a>
 
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-        </svg>
-      </button>
-    </div>
-
-    <div id="mobileMenu" class="md:hidden hidden border-t border-gray-200 bg-white">
-      <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3 text-sm">
-        <a href="#beneficii" class="hover:text-blue-600">Beneficii</a>
-        <a href="#contact" class="hover:text-blue-600">Contact</a>
-        <a href="admin.php" class="hover:text-blue-600">Admin</a>
+        <a href="logout.php"
+           class="rounded-xl border border-slate-200 bg-white px-4 py-2 font-semibold hover:bg-slate-50 transition">
+          Logout
+        </a>
       </div>
-    </div>
-  </header>
+    <?php else: ?>
+      <div class="flex items-center gap-2">
+        <a href="login.php"
+           class="rounded-xl border border-slate-200 bg-white px-4 py-2 font-semibold hover:bg-slate-50 transition">
+          Login
+        </a>
+        <a href="register.php"
+           class="rounded-xl bg-slate-900 px-4 py-2 text-white font-semibold hover:bg-slate-800 transition">
+          Register
+        </a>
+      </div>
+    <?php endif; ?>
+  </div>
+</header>
+
 
   <section class="max-w-6xl mx-auto px-4 py-14">
     <div class="grid md:grid-cols-2 gap-10 items-center">

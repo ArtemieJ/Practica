@@ -1,5 +1,8 @@
 <?php
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/auth.php';
+requireAuth(); 
+
 
 $flash_ok = '';
 $flash_err = '';
@@ -51,8 +54,18 @@ if (!$result) {
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-semibold tracking-tight">Mesaje trimise</h1>
       <div class="text-sm text-slate-500">Admin Panel</div>
-      <div class="text-sm text-slate-500"><a href="index.php">Acasa</a></div>
+      <div class="mt-4 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 font-semibold hover:bg-slate-50 transition w-full"><a href="index.php">Acasa</a></div>
     </div>
+    <div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold">Mesaje trimise</h1>
+    <p class="text-sm text-slate-500">Logat ca: <?= htmlspecialchars($_SESSION['user_email'] ?? '') ?></p>
+  </div>
+  <a href="logout.php" class="rounded-xl border border-slate-200 bg-white px-4 py-2 font-semibold hover:bg-slate-50">
+    Logout
+  </a>
+</div>
+
 
     <?php if ($flash_ok): ?>
       <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
@@ -98,7 +111,6 @@ if (!$result) {
               </td>
 
               <?php if ($isEditing): ?>
-                <!-- EDIT MODE -->
                 <td class="px-6 py-4" colspan="4">
                   <form method="post" action="admin.php" class="space-y-4">
                     <input type="hidden" name="action" value="update_message">
